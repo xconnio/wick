@@ -1,0 +1,3 @@
+# wcli
+
+WAMP CLI Tool
