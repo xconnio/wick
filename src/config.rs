@@ -116,3 +116,24 @@ pub struct CallConfig {
     pub parallel: u32,
     pub concurrency: usize,
 }
+
+/// Configuration specific to the Publish command.
+#[derive(Debug, Clone)]
+pub struct PublishConfig {
+    pub topic: String,
+    pub args: Vec<String>,
+    pub kwargs: Vec<String>,
+    pub options: Vec<String>,
+    pub repeat: u32,
+    pub parallel: u32,
+    pub concurrency: usize,
+    pub acknowledge: bool,
+}
+
+/// Configuration specific to the Subscribe command.
+#[derive(Debug, Clone)]
+pub struct SubscribeConfig {
+    pub topic: String,
+    pub parallel: u32,
+    pub concurrency: usize,
+}

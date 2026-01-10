@@ -69,7 +69,7 @@ async fn run_session(
         }
     };
 
-    for iteration in 0..call_config.repeat {
+    for iteration in 1..=call_config.repeat {
         let request = build_call_request(&call_config);
 
         match session.call(request).await {
@@ -124,7 +124,7 @@ pub async fn handle(
 
     let mut handles = Vec::with_capacity(call_config.parallel as usize);
 
-    for session_id in 0..call_config.parallel {
+    for session_id in 1..=call_config.parallel {
         let permit = semaphore.clone().acquire_owned().await.unwrap();
 
         let conn_config = conn_config.clone();

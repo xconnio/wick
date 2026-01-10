@@ -25,8 +25,8 @@ pub async fn handle(session: &Session, procedure: &str) -> Result<(), Box<dyn st
     let register_request = RegisterRequest::new(procedure, registration_handler);
 
     match session.register(register_request).await {
-        Ok(reg) => println!("Registered procedure {}: {:?}", procedure, reg),
-        Err(e) => println!("Error registering procedure: {}", e),
+        Ok(_) => println!("Registered procedure '{}'", procedure),
+        Err(e) => eprintln!("Error registering procedure: {}", e),
     }
 
     println!("Press Ctrl+C to exit");

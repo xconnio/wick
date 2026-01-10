@@ -5,18 +5,15 @@ mod utils;
 
 use clap::Parser;
 use cli::{Cli, Commands};
-use config::{CallConfig, ConnectionConfig};
+use config::{CallConfig, ConnectionConfig, PublishConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
-    // Handle commands that don't require a connection first
     if let Commands::Keygen { output_file } = cli.command {
         return commands::keygen::handle(output_file);
     }
-
-    println!("Connecting to {} in realm {}", cli.url, cli.realm);
 
     let conn_config = ConnectionConfig::from(&cli);
 
@@ -46,15 +43,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::register::handle(&session, &procedure).await?;
             session.leave().await?;
         }
-        Commands::Subscribe => {
-            let session = conn_config.connect().await?;
-            commands::subscribe::handle(&session).await?;
-            session.leave().await?;
+        Commands::Subscribe {
+            topic,
+            parallel,
+            concurrency,
+        } => {
+            let subscribe_config = config::SubscribeConfig {
+                topic,
+                parallel,
+                concurrency,
+            };
+            commands::subscribe::handle(conn_config, subscribe_config).await?;
         }
-        Commands::Publish => {
-            let session = conn_config.connect().await?;
-            commands::publish::handle(&session).await?;
-            session.leave().await?;
+        Commands::Publish {
+            topic,
+            args,
+            kwargs,
+            options,
+            repeat,
+            parallel,
+            concurrency,
+            acknowledge,
+        } => {
+            let publish_config = PublishConfig {
+                topic,
+                args,
+                kwargs,
+                options,
+                repeat,
+                parallel,
+                concurrency,
+                acknowledge,
+            };
+            commands::publish::handle(conn_config, publish_config).await?;
         }
         Commands::Keygen { .. } => unreachable!(), // Handled above
     }
