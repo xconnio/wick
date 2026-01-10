@@ -1,51 +1,53 @@
-use clap::{Parser, Subcommand};
+mod cli;
+mod commands;
+mod config;
+mod utils;
 
-#[derive(Parser)]
-#[command(name = "wcli")]
-#[command(about = "WAMP Command Line Interface", long_about = None)]
-struct Cli {
-    /// The URL of the router to connect to
-    #[arg(long, default_value = "ws://localhost:8080/ws", global = true)]
-    url: String,
-
-    /// The realm to join
-    #[arg(long, default_value = "realm1", global = true)]
-    realm: String,
-
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Call a procedure
-    Call,
-    /// Register a procedure
-    Register,
-    /// Subscribe to a topic
-    Subscribe,
-    /// Publish to a topic
-    Publish,
-}
+use clap::Parser;
+use cli::{Cli, Commands};
+use config::{CallConfig, ConnectionConfig};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     println!("Connecting to {} in realm {}", cli.url, cli.realm);
 
+    let conn_config = ConnectionConfig::from(&cli);
+
     match cli.command {
-        Commands::Call => {
-            println!("Subcommand 'call' executed");
+        Commands::Call {
+            procedure,
+            args,
+            repeat,
+            parallel,
+            concurrency,
+        } => {
+            let call_config = CallConfig {
+                procedure,
+                args,
+                repeat,
+                parallel,
+                concurrency,
+            };
+            commands::call::handle(conn_config, call_config).await?;
         }
-        Commands::Register => {
-            println!("Subcommand 'register' executed");
+        Commands::Register { procedure } => {
+            let session = conn_config.connect().await?;
+            commands::register::handle(&session, &procedure).await?;
+            session.leave().await?;
         }
         Commands::Subscribe => {
-            println!("Subcommand 'subscribe' executed");
+            let session = conn_config.connect().await?;
+            commands::subscribe::handle(&session).await?;
+            session.leave().await?;
         }
         Commands::Publish => {
-            println!("Subcommand 'publish' executed");
+            let session = conn_config.connect().await?;
+            commands::publish::handle(&session).await?;
+            session.leave().await?;
         }
     }
+
+    Ok(())
 }

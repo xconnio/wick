@@ -1306,7 +1306,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "wampproto"
 version = "0.1.0"
-source = "git+https://github.com/xconnio/wampproto-rust.git?rev=535b34522ecf030276ef4ce6be226cf2aefb9a9a#535b34522ecf030276ef4ce6be226cf2aefb9a9a"
+source = "git+https://github.com/xconnio/wampproto-rust.git?rev=520130fa02343409578879959748b36f151bbc8d#520130fa02343409578879959748b36f151bbc8d"
 dependencies = [
  "base64",
  "ed25519-dalek",
@@ -1341,7 +1341,10 @@ name = "wcli"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "serde",
+ "serde_json",
  "tokio",
+ "wampproto",
  "xconn",
 ]
 
@@ -1449,7 +1452,7 @@ checksum = "9edde0db4769d2dc68579893f2306b26c6ecfbe0ef499b013d731b7b9247e0b9"
 [[package]]
 name = "xconn"
 version = "0.1.0"
-source = "git+https://github.com/xconnio/xconn-rust#45b756f4a76025db865fed63d7d84a642b4550d4"
+source = "git+https://github.com/xconnio/xconn-rust.git?rev=484b2deade287937d3c3a65b6ad9d8b2ae2dd2d1#484b2deade287937d3c3a65b6ad9d8b2ae2dd2d1"
 dependencies = [
  "async-trait",
  "futures-util",
