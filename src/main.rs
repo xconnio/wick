@@ -11,6 +11,11 @@ use config::{CallConfig, ConnectionConfig};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
+    // Handle commands that don't require a connection first
+    if let Commands::Keygen { output_file } = cli.command {
+        return commands::keygen::handle(output_file);
+    }
+
     println!("Connecting to {} in realm {}", cli.url, cli.realm);
 
     let conn_config = ConnectionConfig::from(&cli);
@@ -51,6 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::publish::handle(&session).await?;
             session.leave().await?;
         }
+        Commands::Keygen { .. } => unreachable!(), // Handled above
     }
 
     Ok(())

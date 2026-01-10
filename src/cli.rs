@@ -81,4 +81,10 @@ pub enum Commands {
     Subscribe,
     /// Publish to a topic
     Publish,
+    /// Generate a WAMP cryptosign ed25519 keypair
+    Keygen {
+        /// Write keypair to file. Uses 'key' and 'key.pub' by default, or specify a custom name
+        #[arg(short = 'O', long = "output-file", value_name = "NAME", num_args = 0..=1, default_missing_value = "key")]
+        output_file: Option<String>,
+    },
 }
