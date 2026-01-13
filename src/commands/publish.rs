@@ -1,5 +1,6 @@
+use crate::colored_eprintln;
 use crate::config::{ConnectionConfig, PublishConfig};
-use crate::utils::{ParsedArg, parse_arg};
+use crate::utils::{ParsedArg, format_connect_error, parse_arg};
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use xconn::sync::PublishRequest;
@@ -69,7 +70,10 @@ async fn run_session(
     let session = match conn_config.connect().await {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("Session {} Connection Error: {}", session_id, e);
+            colored_eprintln!(
+                "{}",
+                format_connect_error(session_id, publish_config.parallel, e.as_ref())
+            );
             return;
         }
     };
@@ -78,11 +82,23 @@ async fn run_session(
         let request = build_publish_request(&publish_config);
 
         match session.publish(request).await {
-            Ok(_) => {}
-            Err(e) => eprintln!(
-                "Session {} Iteration {} Publish Error: {}",
-                session_id, iteration, e
-            ),
+            Ok(response) => {
+                if let Some(resp) = response
+                    && let Some(err) = resp.error
+                {
+                    colored_eprintln!("{}", err.uri);
+                    break;
+                }
+            }
+            Err(e) => {
+                colored_eprintln!(
+                    "Session {} Iteration {} Publish Error: {}",
+                    session_id,
+                    iteration,
+                    e
+                );
+                break;
+            }
         }
     }
 

@@ -2,6 +2,52 @@ use serde::Serialize;
 use serde_json::Value as SerdeValue;
 use xconn::sync::Value as WampValue;
 
+#[macro_export]
+macro_rules! colored_eprintln {
+    ($($arg:tt)*) => {{
+        const RED: &str = "\x1b[31m";
+        const RESET: &str = "\x1b[0m";
+        eprintln!("{}[ERROR]{} {}", RED, RESET, format!($($arg)*));
+    }};
+}
+
+#[macro_export]
+macro_rules! colored_println {
+    ($($arg:tt)*) => {{
+        const BLUE: &str = "\x1b[34m";
+        const RESET: &str = "\x1b[0m";
+        println!("{}[INFO]{} {}", BLUE, RESET, format!($($arg)*));
+    }};
+}
+
+pub fn format_connect_error(
+    session_id: u32,
+    parallel: u32,
+    error: &dyn std::error::Error,
+) -> String {
+    fn capitalize_first(mut message: String) -> String {
+        let Some(first) = message.chars().next() else {
+            return message;
+        };
+        if first.is_ascii_lowercase() {
+            message.replace_range(0..first.len_utf8(), &first.to_ascii_uppercase().to_string());
+        }
+        message
+    }
+
+    let mut root = error;
+    while let Some(src) = root.source() {
+        root = src;
+    }
+
+    let message = capitalize_first(root.to_string());
+    if parallel == 1 {
+        message
+    } else {
+        format!("Session {}: {}", session_id, message)
+    }
+}
+
 #[derive(Debug)]
 pub enum ParsedArg {
     Integer(i64),

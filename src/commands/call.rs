@@ -1,5 +1,8 @@
+use crate::colored_eprintln;
 use crate::config::{CallConfig, ConnectionConfig};
-use crate::utils::{CommandOutput, ParsedArg, parse_arg, wamp_value_to_serde};
+use crate::utils::{
+    CommandOutput, ParsedArg, format_connect_error, parse_arg, wamp_value_to_serde,
+};
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use xconn::sync::CallRequest;
@@ -64,7 +67,11 @@ async fn run_session(
     let session = match conn_config.connect().await {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("Session {} Connection Error: {}", session_id, e);
+            eprintln!("{}", e);
+            colored_eprintln!(
+                "{}",
+                format_connect_error(session_id, call_config.parallel, e.as_ref())
+            );
             return;
         }
     };
@@ -74,6 +81,11 @@ async fn run_session(
 
         match session.call(request).await {
             Ok(result) => {
+                if let Some(err) = result.error {
+                    colored_eprintln!("{}", err.uri);
+                    break;
+                }
+
                 let output = CommandOutput {
                     args: result
                         .args
@@ -96,21 +108,28 @@ async fn run_session(
                 };
                 match serde_json::to_string_pretty(&output) {
                     Ok(json) => println!("{}", json),
-                    Err(e) => eprintln!(
+                    Err(e) => colored_eprintln!(
                         "Session {} Iteration {} Error serializing result: {}",
-                        session_id, iteration, e
+                        session_id,
+                        iteration,
+                        e
                     ),
                 }
             }
-            Err(e) => eprintln!(
-                "Session {} Iteration {} Call Error: {}",
-                session_id, iteration, e
-            ),
+            Err(e) => {
+                colored_eprintln!(
+                    "Session {} Iteration {} Call Error: {}",
+                    session_id,
+                    iteration,
+                    e
+                );
+                break;
+            }
         }
     }
 
     if let Err(e) = session.leave().await {
-        eprintln!("Session {} Error leaving: {}", session_id, e);
+        colored_eprintln!("Session {} Error leaving: {}", session_id, e);
     }
 }
 

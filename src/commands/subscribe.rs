@@ -1,5 +1,7 @@
+use crate::colored_eprintln;
+use crate::colored_println;
 use crate::config::{ConnectionConfig, SubscribeConfig};
-use crate::utils::{CommandOutput, wamp_async_value_to_serde};
+use crate::utils::{CommandOutput, format_connect_error, wamp_async_value_to_serde};
 use std::sync::Arc;
 use tokio::signal;
 use tokio::sync::Semaphore;
@@ -38,7 +40,10 @@ async fn run_session(
     let session = match conn_config.connect().await {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("Session {} Connection Error: {}", session_id, e);
+            colored_eprintln!(
+                "{}",
+                format_connect_error(session_id, subscribe_config.parallel, e.as_ref())
+            );
             return;
         }
     };
@@ -46,18 +51,26 @@ async fn run_session(
     let request = build_subscribe_request(&subscribe_config);
 
     match session.subscribe(request).await {
-        Ok(_) => {
+        Ok(resp) => {
+            if let Some(err) = resp.error {
+                colored_eprintln!("{}", err.uri);
+                let _ = session.leave().await;
+                return;
+            }
+
             if subscribe_config.parallel > 1 {
-                println!(
+                colored_println!(
                     "Session {}: Subscribed to topic '{}'",
-                    session_id, subscribe_config.topic
+                    session_id,
+                    subscribe_config.topic
                 );
             } else {
-                println!("Subscribed to topic '{}'", subscribe_config.topic);
+                colored_println!("Subscribed to topic '{}'", subscribe_config.topic);
             }
         }
         Err(e) => {
-            eprintln!("Session {} Subscribe Error: {}", session_id, e);
+            colored_eprintln!("Session {} Subscribe Error: {}", session_id, e);
+            let _ = session.leave().await;
             return;
         }
     }
@@ -67,7 +80,7 @@ async fn run_session(
     let _ = shutdown.changed().await;
 
     if let Err(e) = session.leave().await {
-        eprintln!("Session {} Error leaving: {}", session_id, e);
+        colored_eprintln!("Session {} Error leaving: {}", session_id, e);
     }
 }
 
@@ -98,9 +111,9 @@ pub async fn handle(
         handles.push(handle);
     }
 
-    println!("Press Ctrl+C to exit");
+    colored_println!("Press Ctrl+C to exit");
     signal::ctrl_c().await?;
-    println!("Exiting...");
+    colored_println!("Exiting...");
 
     // Signal all sessions to shutdown
     let _ = shutdown_tx.send(true);
