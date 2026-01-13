@@ -1,3 +1,5 @@
+use crate::colored_eprintln;
+use crate::colored_println;
 use crate::utils::{CommandOutput, wamp_async_value_to_serde};
 use tokio::signal;
 use xconn::async_::session::Session;
@@ -25,13 +27,22 @@ pub async fn handle(session: &Session, procedure: &str) -> Result<(), Box<dyn st
     let register_request = RegisterRequest::new(procedure, registration_handler);
 
     match session.register(register_request).await {
-        Ok(_) => println!("Registered procedure '{}'", procedure),
-        Err(e) => eprintln!("Error registering procedure: {}", e),
+        Ok(resp) => {
+            if let Some(err) = resp.error {
+                colored_eprintln!("{}", err.uri);
+                return Ok(());
+            }
+            colored_println!("Registered procedure '{}'", procedure);
+        }
+        Err(e) => {
+            colored_eprintln!("Error registering procedure: {}", e);
+            return Ok(());
+        }
     }
 
-    println!("Press Ctrl+C to exit");
+    colored_println!("Press Ctrl+C to exit");
     signal::ctrl_c().await?;
-    println!("Exiting...");
+    colored_println!("Exiting...");
 
     Ok(())
 }

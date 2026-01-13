@@ -1477,7 +1477,7 @@ checksum = "9edde0db4769d2dc68579893f2306b26c6ecfbe0ef499b013d731b7b9247e0b9"
 [[package]]
 name = "xconn"
 version = "0.1.0"
-source = "git+https://github.com/xconnio/xconn-rust.git?rev=484b2deade287937d3c3a65b6ad9d8b2ae2dd2d1#484b2deade287937d3c3a65b6ad9d8b2ae2dd2d1"
+source = "git+https://github.com/xconnio/xconn-rust.git?rev=2bf55ac6f0e2a7e8a3bb6212f74bf6b87a3d54d5#2bf55ac6f0e2a7e8a3bb6212f74bf6b87a3d54d5"
 dependencies = [
  "async-trait",
  "futures-util",
