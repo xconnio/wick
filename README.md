@@ -1,3 +1,3 @@
-# wcli
+# wick
 
 WAMP CLI Tool
