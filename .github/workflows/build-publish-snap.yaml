@@ -1,0 +1,28 @@
+name: Build & Publish Snap
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-publish-snap:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout git repository
+        uses: actions/checkout@v6
+
+      - name: Build the snap
+        uses: snapcore/action-build@v1
+        with:
+          snapcraft-channel: 8.x/stable
+
+      - name: Publish the snap
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: snapcraft upload wick_*.snap --release=edge
