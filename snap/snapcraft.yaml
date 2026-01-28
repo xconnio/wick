@@ -1,0 +1,26 @@
+name: wick
+base: core24
+version: git
+summary: WAMP in Command-line
+description: |
+  WAMP in Command-line
+
+grade: stable
+confinement: strict
+compression: lzo
+
+parts:
+  wick:
+    plugin: rust
+    source: .
+    build-packages:
+      - pkg-config
+      - libssl-dev
+
+apps:
+  wick:
+    command: bin/wcli
+    plugs:
+      - network
+      - network-bind
+      - home
