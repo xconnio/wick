@@ -1359,7 +1359,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "wcli"
+name = "wick"
 version = "0.1.0"
 dependencies = [
  "clap",

@@ -19,7 +19,7 @@ parts:
 
 apps:
   wick:
-    command: bin/wcli
+    command: bin/wick
     plugs:
       - network
       - network-bind

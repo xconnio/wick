@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "wcli")]
+#[command(name = "wick")]
 #[command(about = "WAMP Command Line Interface", long_about = None)]
 pub struct Cli {
     /// The URL of the router to connect to
