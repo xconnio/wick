@@ -12,5 +12,5 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 tokio = { version = "1.49.0", features = ["full"] }
 wampproto = { git = "https://github.com/xconnio/wampproto-rust.git", rev = "520130fa02343409578879959748b36f151bbc8d" }
-xconn = { git = "https://github.com/xconnio/xconn-rust.git", rev = "2bf55ac6f0e2a7e8a3bb6212f74bf6b87a3d54d5" }
+xconn = { git = "https://github.com/xconnio/xconn-rust.git", rev = "7357b73f179d58400849c66ce2052b41fa2015ba" }
 

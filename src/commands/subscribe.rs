@@ -3,6 +3,7 @@ use crate::colored_println;
 use crate::config::{ConnectionConfig, SubscribeConfig};
 use crate::utils::{CommandOutput, format_connect_error, wamp_async_value_to_serde};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::signal;
 use tokio::sync::Semaphore;
 use xconn::async_::{Event, SubscribeRequest};
@@ -36,6 +37,8 @@ async fn run_session(
     subscribe_config: Arc<SubscribeConfig>,
     session_id: u32,
     shutdown: tokio::sync::watch::Receiver<bool>,
+    disconnect_tx: tokio::sync::mpsc::Sender<()>,
+    ctrl_c_printed: Arc<AtomicBool>,
 ) {
     let session = match conn_config.connect().await {
         Ok(s) => s,
@@ -67,6 +70,11 @@ async fn run_session(
             } else {
                 colored_println!("Subscribed to topic '{}'", subscribe_config.topic);
             }
+
+            // Print "Press Ctrl+C to exit" only once across all sessions
+            if !ctrl_c_printed.swap(true, Ordering::Relaxed) {
+                colored_println!("Press Ctrl+C to exit");
+            }
         }
         Err(e) => {
             colored_eprintln!("Session {} Subscribe Error: {}", session_id, e);
@@ -75,11 +83,16 @@ async fn run_session(
         }
     }
 
-    // Wait for shutdown signal
+    // Wait for either shutdown signal or connection loss
     let mut shutdown = shutdown;
-    let _ = shutdown.changed().await;
+    let disconnected = tokio::select! {
+        _ = shutdown.changed() => false,
+        _ = session.wait_disconnect() => true,
+    };
 
-    if let Err(e) = session.leave().await {
+    if disconnected {
+        let _ = disconnect_tx.send(()).await;
+    } else if let Err(e) = session.leave().await {
         colored_eprintln!("Session {} Error leaving: {}", session_id, e);
     }
 }
@@ -95,6 +108,11 @@ pub async fn handle(
     // Create shutdown channel
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
 
+    // Create disconnect notification channel
+    let (disconnect_tx, mut disconnect_rx) = tokio::sync::mpsc::channel::<()>(1);
+
+    let ctrl_c_printed = Arc::new(AtomicBool::new(false));
+
     let mut handles = Vec::with_capacity(subscribe_config.parallel as usize);
 
     for session_id in 1..=subscribe_config.parallel {
@@ -102,24 +120,51 @@ pub async fn handle(
         let conn_config = conn_config.clone();
         let subscribe_config = subscribe_config.clone();
         let shutdown_rx = shutdown_rx.clone();
+        let disconnect_tx = disconnect_tx.clone();
+        let ctrl_c_printed = ctrl_c_printed.clone();
 
         let handle = tokio::spawn(async move {
             let _permit = permit;
-            run_session(conn_config, subscribe_config, session_id, shutdown_rx).await;
+            run_session(
+                conn_config,
+                subscribe_config,
+                session_id,
+                shutdown_rx,
+                disconnect_tx,
+                ctrl_c_printed,
+            )
+            .await;
         });
 
         handles.push(handle);
     }
 
-    colored_println!("Press Ctrl+C to exit");
-    signal::ctrl_c().await?;
-    colored_println!("Exiting...");
+    // Spawn a task to track when all sessions finish
+    let mut join_handle = tokio::spawn(async move {
+        for handle in handles {
+            let _ = handle.await;
+        }
+    });
 
-    // Signal all sessions to shutdown
+    tokio::select! {
+        _ = signal::ctrl_c() => {
+            colored_println!("Exiting...");
+        }
+        _ = disconnect_rx.recv() => {
+            colored_eprintln!("Lost connection to router");
+        }
+        _ = &mut join_handle => {
+            // All sessions ended (e.g., all failed to connect)
+            // Error messages already printed in run_session
+        }
+    }
+
+    // Signal remaining sessions to shutdown
     let _ = shutdown_tx.send(true);
+    drop(disconnect_tx);
 
-    for handle in handles {
-        let _ = handle.await;
+    if !join_handle.is_finished() {
+        let _ = join_handle.await;
     }
 
     Ok(())

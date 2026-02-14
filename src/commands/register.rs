@@ -1,8 +1,8 @@
 use crate::colored_eprintln;
 use crate::colored_println;
-use crate::utils::{CommandOutput, wamp_async_value_to_serde};
+use crate::config::ConnectionConfig;
+use crate::utils::{CommandOutput, format_connect_error, wamp_async_value_to_serde};
 use tokio::signal;
-use xconn::async_::session::Session;
 use xconn::async_::{Invocation, RegisterRequest, Yield};
 
 async fn registration_handler(inv: Invocation) -> Yield {
@@ -23,7 +23,18 @@ async fn registration_handler(inv: Invocation) -> Yield {
     Yield::new(inv.args, inv.kwargs)
 }
 
-pub async fn handle(session: &Session, procedure: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn handle(
+    conn_config: ConnectionConfig,
+    procedure: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let session = match conn_config.connect().await {
+        Ok(s) => s,
+        Err(e) => {
+            colored_eprintln!("{}", format_connect_error(1, 1, e.as_ref()));
+            return Ok(());
+        }
+    };
+
     let register_request = RegisterRequest::new(procedure, registration_handler);
 
     match session.register(register_request).await {
@@ -41,8 +52,16 @@ pub async fn handle(session: &Session, procedure: &str) -> Result<(), Box<dyn st
     }
 
     colored_println!("Press Ctrl+C to exit");
-    signal::ctrl_c().await?;
-    colored_println!("Exiting...");
+    tokio::select! {
+        _ = signal::ctrl_c() => {
+            colored_println!("Exiting...");
+        }
+        _ = session.wait_disconnect() => {
+            colored_eprintln!("Lost connection to router");
+        }
+    }
+
+    let _ = session.leave().await;
 
     Ok(())
 }
