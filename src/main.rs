@@ -39,9 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::call::handle(conn_config, call_config).await?;
         }
         Commands::Register { procedure } => {
-            let session = conn_config.connect().await?;
-            commands::register::handle(&session, &procedure).await?;
-            session.leave().await?;
+            commands::register::handle(conn_config, &procedure).await?;
         }
         Commands::Subscribe {
             topic,

@@ -67,7 +67,6 @@ async fn run_session(
     let session = match conn_config.connect().await {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("{}", e);
             colored_eprintln!(
                 "{}",
                 format_connect_error(session_id, call_config.parallel, e.as_ref())
