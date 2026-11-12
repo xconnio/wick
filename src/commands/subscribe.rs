@@ -6,14 +6,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::signal;
 use tokio::sync::Semaphore;
-use xconn::async_::{Event, SubscribeRequest};
-
-/// Builds a SubscribeRequest from the SubscribeConfig.
-fn build_subscribe_request(config: &SubscribeConfig) -> SubscribeRequest {
-    // Note: SubscribeRequest doesn't support options via builder pattern
-    // Options would need to be added at the xconn-rust library level
-    SubscribeRequest::new(&config.topic, event_handler)
-}
+use xconn::async_::Event;
 
 async fn event_handler(event: Event) {
     let output = CommandOutput {
@@ -51,9 +44,11 @@ async fn run_session(
         }
     };
 
-    let request = build_subscribe_request(&subscribe_config);
-
-    match session.subscribe(request).await {
+    match session
+        .subscribe(&subscribe_config.topic, event_handler)
+        .execute()
+        .await
+    {
         Ok(resp) => {
             if let Some(err) = resp.error {
                 colored_eprintln!("{}", err.uri);

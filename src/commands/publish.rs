@@ -3,7 +3,8 @@ use crate::config::{ConnectionConfig, PublishConfig};
 use crate::utils::{ParsedArg, format_connect_error, parse_arg};
 use std::sync::Arc;
 use tokio::sync::Semaphore;
-use xconn::sync::PublishRequest;
+use xconn::async_::requests::PublishBuilder;
+use xconn::async_::session::Session;
 
 /// Parses a "key=value" string and returns the key and parsed value.
 fn parse_key_value(input: &str) -> Option<(String, ParsedArg)> {
@@ -15,9 +16,9 @@ fn parse_key_value(input: &str) -> Option<(String, ParsedArg)> {
     }
 }
 
-/// Builds a PublishRequest from the PublishConfig.
-fn build_publish_request(config: &PublishConfig) -> PublishRequest {
-    let mut request = PublishRequest::new(&config.topic);
+/// Applies the publish configuration to a session-bound request.
+fn build_publish_request<'a>(session: &'a Session, config: &PublishConfig) -> PublishBuilder<'a> {
+    let mut request = session.publish(&config.topic);
 
     // Add positional arguments
     for arg in &config.args {
@@ -79,9 +80,9 @@ async fn run_session(
     };
 
     for iteration in 1..=publish_config.repeat {
-        let request = build_publish_request(&publish_config);
+        let request = build_publish_request(&session, &publish_config);
 
-        match session.publish(request).await {
+        match request.execute().await {
             Ok(response) => {
                 if let Some(resp) = response
                     && let Some(err) = resp.error

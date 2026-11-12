@@ -3,9 +3,9 @@ use crate::colored_println;
 use crate::config::ConnectionConfig;
 use crate::utils::{CommandOutput, format_connect_error, wamp_async_value_to_serde};
 use tokio::signal;
-use xconn::async_::{Invocation, RegisterRequest, Yield};
+use xconn::async_::{Invocation, Result as RpcResult};
 
-async fn registration_handler(inv: Invocation) -> Yield {
+async fn registration_handler(inv: Invocation) -> RpcResult {
     let output = CommandOutput {
         args: inv.args.iter().map(wamp_async_value_to_serde).collect(),
         kwargs: inv
@@ -20,7 +20,7 @@ async fn registration_handler(inv: Invocation) -> Yield {
         Err(e) => println!("Error serializing invocation: {}", e),
     }
 
-    Yield::new(inv.args, inv.kwargs)
+    RpcResult::new(inv.args, inv.kwargs)
 }
 
 pub async fn handle(
@@ -35,9 +35,11 @@ pub async fn handle(
         }
     };
 
-    let register_request = RegisterRequest::new(procedure, registration_handler);
-
-    match session.register(register_request).await {
+    match session
+        .register(procedure, registration_handler)
+        .execute()
+        .await
+    {
         Ok(resp) => {
             if let Some(err) = resp.error {
                 colored_eprintln!("{}", err.uri);
