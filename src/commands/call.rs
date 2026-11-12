@@ -5,7 +5,8 @@ use crate::utils::{
 };
 use std::sync::Arc;
 use tokio::sync::Semaphore;
-use xconn::sync::CallRequest;
+use xconn::async_::requests::CallBuilder;
+use xconn::async_::session::Session;
 
 /// Parses a "key=value" string and returns the key and parsed value.
 fn parse_key_value(input: &str) -> Option<(String, ParsedArg)> {
@@ -17,9 +18,9 @@ fn parse_key_value(input: &str) -> Option<(String, ParsedArg)> {
     }
 }
 
-/// Builds a CallRequest from the CallConfig.
-fn build_call_request(config: &CallConfig) -> CallRequest {
-    let mut request = CallRequest::new(&config.procedure);
+/// Applies the call configuration to a session-bound request.
+fn build_call_request<'a>(session: &'a Session, config: &CallConfig) -> CallBuilder<'a> {
+    let mut request = session.call(&config.procedure);
 
     // Add positional arguments
     for arg in &config.args {
@@ -76,9 +77,9 @@ async fn run_session(
     };
 
     for iteration in 1..=call_config.repeat {
-        let request = build_call_request(&call_config);
+        let request = build_call_request(&session, &call_config);
 
-        match session.call(request).await {
+        match request.execute().await {
             Ok(result) => {
                 if let Some(err) = result.error {
                     colored_eprintln!("{}", err.uri);
